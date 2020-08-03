@@ -1,0 +1,655 @@
+Project_Part 1
+Authors: Simeng Deng, Zhuo Chen, Lei Cao
+
+-- drop the tables
+DROP TABLE Listen;
+DROP TABLE Recommendation;
+DROP TABLE Reflection;
+DROP TABLE Membership_Payment;
+DROP TABLE Issuance_on_Platform;
+DROP TABLE Favorite;
+DROP TABLE Playlist;
+DROP TABLE Music;
+DROP TABLE Album;
+DROP TABLE Normal_Account;
+DROP TABLE Artist_Account;
+DROP TABLE User_Account;
+
+-- drop the sequences
+DROP SEQUENCE User_Account_SEQ;
+DROP SEQUENCE Music_SEQ;
+DROP SEQUENCE Album_SEQ;
+DROP SEQUENCE Issue_SEQ;
+DROP SEQUENCE Playlist_SEQ;
+DROP SEQUENCE Membership_SEQ;
+
+-- create a table for user accounts
+CREATE TABLE User_Account (
+AccountID INT PRIMARY KEY,
+UserName VARCHAR(50),
+Gender CHAR(1) CHECK (Gender IN ('M','F')),
+Age NUMBER(3),
+UserType VARCHAR(10) CHECK (UserType IN ('Normal','Artist')),
+Telephone_number VARCHAR(20)
+);
+
+
+
+-- create a table for artist accounts
+CREATE TABLE Artist_Account (
+AAccountID INT PRIMARY KEY,
+isIndependent CHAR(1) CHECK (isIndependent IN ('Y','N'))
+);
+-- add the foreign key
+ALTER TABLE Artist_Account
+ADD FOREIGN KEY (AAccountID) REFERENCES User_Account(AccountID);
+
+
+
+-- create a table for normal accounts
+CREATE TABLE Normal_Account (
+NAccountID INT PRIMARY KEY,
+isMember CHAR(1) CHECK (isMember IN ('Y','N'))
+);
+-- add the foreign key
+ALTER TABLE Normal_Account
+ADD FOREIGN KEY (NAccountID) REFERENCES User_Account(AccountID);
+
+
+-- create a table for music
+CREATE TABLE Music (
+Music_number INT PRIMARY KEY,
+MusicName VARCHAR(50),
+Genre VARCHAR(50),
+Album_number INT,
+SongLength INT,
+isPremium CHAR(1) CHECK (isPremium IN ('Y','N'))
+);
+
+
+
+ -- create a table for album
+CREATE TABLE Album(
+Album_number INT PRIMARY KEY,
+AlbumName VARCHAR(50),
+AlbumDate DATE
+);
+-- constrain the album_number of the music table to foreign key
+ALTER TABLE Music
+ADD FOREIGN KEY (Album_number) REFERENCES Album(Album_number);
+
+
+-- create a table for playlist
+CREATE TABLE Playlist (
+Playlist_number INT PRIMARY KEY,
+AccountID INT,
+ListName VARCHAR(50),
+CreatedDate DATE
+);
+-- constrain the accountID of the playlist table to foreign key
+ALTER TABLE Playlist
+ADD FOREIGN KEY (AccountID) REFERENCES User_Account(AccountID);
+
+
+
+-- create a table for favorite
+CREATE TABLE Favorite (
+Playlist_number INT,
+Music_number INT,
+FavoriteDate DATE,
+PRIMARY KEY (Playlist_number, Music_number)
+);
+-- constrain the album_number of the music table to foreign key
+ALTER TABLE Favorite
+ADD FOREIGN KEY (Playlist_number) REFERENCES Playlist(Playlist_number);
+ALTER TABLE Favorite
+ADD FOREIGN KEY (Music_number) REFERENCES Music(Music_number);
+
+
+
+-- create a table for issuance_on_platform
+CREATE TABLE Issuance_on_Platform(
+Issue_number INT,
+Music_number INT,
+AAccountID INT,
+UserName VARCHAR(50),
+Royalty DECIMAL(6,5),
+IssueDate DATE,
+EndDate DATE,
+PRIMARY KEY (Issue_number, Music_number, AAccountID)
+);
+
+
+
+-- create a table for membership_payment
+CREATE TABLE Membership_Payment(
+Order_number INT PRIMARY KEY,
+NAccountID INT,
+PaymentDate DATE NOT NULL ,
+Membership_Duration INT NOT NULL,
+DueDate DATE AS (PaymentDate + (Membership_Duration*30))
+);
+-- add the amount column
+ALTER TABLE Membership_Payment
+ADD Amount AS ( 
+CASE
+WHEN Membership_Duration = 1 THEN 10
+WHEN Membership_Duration = 6 THEN 48 
+WHEN Membership_Duration = 12 THEN 84
+END);
+-- constrain the normal accountid of the membership_payment table to foreign key
+ALTER TABLE Membership_Payment
+ADD FOREIGN KEY (NAccountID) REFERENCES Normal_Account(NAccountID);
+
+
+-- create a table for reflection
+CREATE TABLE Reflection(
+AccountID INT,
+Music_number INT,
+Attitude VARCHAR(20) CHECK(Attitude IN('Like','Dislike')),
+PRIMARY KEY (AccountID, Music_number)
+);
+
+
+-- create a table for recommendation
+CREATE TABLE Recommendation(
+RecDate DATE,
+AccountID INT,
+Music_number INT,
+PRIMARY KEY(RecDate, AccountID, Music_number)
+);
+
+
+-- create a table for listen
+CREATE TABLE Listen(
+StartTime TIMESTAMP,
+AccountID INT,
+Music_number INT,
+StopTime TIMESTAMP,
+StopPoint INT,
+LSource VARCHAR(50) CHECK(LSource IN('Recommendation List', 'Search', 'Playlist', 'Other Recommendation')),
+PRIMARY KEY(StartTime,AccountID,Music_number)
+);
+
+
+-- constrain the music_number of the issuance_on_platform table to foreign key
+ALTER TABLE Issuance_on_Platform
+ADD FOREIGN KEY (Music_number) REFERENCES Music(Music_number);
+-- constrain the accountid and music_number of the reflection table to foreign key
+ALTER TABLE Reflection
+ADD FOREIGN KEY (AccountID) REFERENCES User_Account(AccountID);
+ALTER TABLE Reflection
+ADD FOREIGN KEY (Music_number) REFERENCES Music(Music_number);
+-- constrain the recdate, accountid and music_number of the recommendation table to foreign key
+ALTER TABLE Recommendation
+ADD FOREIGN KEY (AccountID) REFERENCES User_Account(AccountID);
+ALTER TABLE Recommendation
+ADD FOREIGN KEY (Music_number) REFERENCES Music(Music_number);
+-- constrain the accountid and music_number of the listen table to foreign key
+ALTER TABLE Listen
+ADD FOREIGN KEY (AccountID) REFERENCES User_Account(AccountID);
+ALTER TABLE Listen
+ADD FOREIGN KEY (Music_number) REFERENCES Music(Music_number);
+
+
+-- convert the date type
+ALTER SESSION SET NLS_DATE_FORMAT = 'MM/DD/YYYY';
+
+
+--disables the parsing of commands
+SET DEFINE OFF;
+
+
+
+-- insert data
+-- insert Accounts data
+-- create a sequence for User_Account
+CREATE SEQUENCE User_Account_SEQ
+        START WITH 1
+        INCREMENT BY 1;
+        
+INSERT INTO User_Account 
+VALUES (User_Account_SEQ.NEXTVAL, 'Adam', 'M', 16, 'Normal', '13668465423');
+INSERT INTO Normal_Account VALUES (User_Account_SEQ.CURRVAL, 'Y');
+
+INSERT INTO User_Account
+VALUES (User_Account_SEQ.NEXTVAL, 'Ray', 'M', NULL, 'Normal', '17068976546');
+INSERT INTO Normal_Account VALUES (User_Account_SEQ.CURRVAL, 'Y');
+
+INSERT INTO User_Account 
+VALUES (User_Account_SEQ.NEXTVAL, 'Cassie', 'F', 27, 'Normal', '15365465432');
+INSERT INTO Normal_Account VALUES (User_Account_SEQ.CURRVAL, 'Y');      
+
+INSERT INTO User_Account 
+VALUES (User_Account_SEQ.NEXTVAL, 'Avril Lavigne', 'F', 35, 'Artist', '8603241000');     
+INSERT INTO Artist_Account VALUES (User_Account_SEQ.CURRVAL, 'N');
+
+INSERT INTO User_Account 
+VALUES (User_Account_SEQ.NEXTVAL, 'Bu Cai', 'F', NULL, 'Artist', '13910959291');
+INSERT INTO Artist_Account VALUES (User_Account_SEQ.CURRVAL, 'Y');
+
+INSERT INTO User_Account 
+VALUES (User_Account_SEQ.NEXTVAL, 'Lauv', 'M', 25, 'Artist', '8608970748');
+INSERT INTO Artist_Account VALUES (User_Account_SEQ.CURRVAL, 'N'); 
+
+INSERT INTO User_Account 
+VALUES (User_Account_SEQ.NEXTVAL, 'Xuesi', 'F', 22, 'Normal', '13551613513');
+INSERT INTO Normal_Account VALUES (User_Account_SEQ.CURRVAL, 'N'); 
+
+INSERT INTO User_Account 
+VALUES (User_Account_SEQ.NEXTVAL, 'Simon', 'M', 30, 'Normal', '8325464231');
+INSERT INTO Normal_Account VALUES (User_Account_SEQ.CURRVAL, 'Y');      
+
+INSERT INTO User_Account 
+VALUES (User_Account_SEQ.NEXTVAL, 'Rosalie', 'F', 19, 'Normal', '2026543213');
+INSERT INTO Normal_Account VALUES (User_Account_SEQ.CURRVAL, 'N');     
+
+INSERT INTO User_Account 
+VALUES (User_Account_SEQ.NEXTVAL, 'Hui Tian', 'M', 14, 'Normal', '16956464832');
+INSERT INTO Normal_Account VALUES (User_Account_SEQ.CURRVAL, 'N');     
+
+INSERT INTO User_Account 
+VALUES (User_Account_SEQ.NEXTVAL, 'Chunhua Xie', 'F', 25, 'Artist', '17876543946');
+INSERT INTO Artist_Account VALUES (User_Account_SEQ.CURRVAL, 'Y'); 
+
+INSERT INTO User_Account 
+VALUES (User_Account_SEQ.NEXTVAL, 'Feng Wang', 'M', 48, 'Artist', '13945205106');
+INSERT INTO Artist_Account VALUES (User_Account_SEQ.CURRVAL, 'N');
+
+
+-- insert music and album data
+-- create a sequence for Album
+CREATE SEQUENCE Album_SEQ
+        START WITH 1
+        INCREMENT BY 1;
+        
+INSERT INTO Album VALUES (Album_SEQ.NEXTVAL, 'I Like Me Better', '05/18/2017');
+
+
+-- create a sequence for Music
+CREATE SEQUENCE Music_SEQ
+        START WITH 1
+        INCREMENT BY 1;
+        
+INSERT INTO Music 
+VALUES (Music_SEQ.NEXTVAL, 'I Like Me Better', 'Pop', Album_SEQ.CURRVAL, 197, 'N');
+
+INSERT INTO Album VALUES (Album_SEQ.NEXTVAL, 'Paris in the Rain', '11/16/2017');
+INSERT INTO Music 
+VALUES (Music_SEQ.NEXTVAL, 'Paris in the Rain', 'Pop', Album_SEQ.CURRVAL, 204, 'N');
+
+INSERT INTO Album VALUES (Album_SEQ.NEXTVAL, 'Head Above Water', '02/14/2019');
+INSERT INTO Music 
+VALUES (Music_SEQ.NEXTVAL, 'Head Above Water', 'Pop Rock', Album_SEQ.CURRVAL, 220, 'Y');
+INSERT INTO Music 
+VALUES (Music_SEQ.NEXTVAL, 'I Fell In Love With The Devil', 'Pop', Album_SEQ.CURRVAL, 255, 'Y');
+
+INSERT INTO Album VALUES (Album_SEQ.NEXTVAL, 'Not a Lover', '07/01/2019');
+INSERT INTO Music 
+VALUES (Music_SEQ.NEXTVAL, 'Not a Lover', 'R&B', Album_SEQ.CURRVAL, 231, 'N');
+
+INSERT INTO Album VALUES (Album_SEQ.NEXTVAL, 'Silent Rebellion', '06/06/2019');
+INSERT INTO Music 
+VALUES (Music_SEQ.NEXTVAL, 'You Are', 'Pop', Album_SEQ.CURRVAL, 229, 'Y');
+INSERT INTO Music 
+VALUES (Music_SEQ.NEXTVAL, 'Okay', 'Pop', Album_SEQ.CURRVAL, 205, 'Y');
+
+INSERT INTO Album VALUES (Album_SEQ.NEXTVAL, 'Dim Sum', '06/12/2018');
+INSERT INTO Music 
+VALUES (Music_SEQ.NEXTVAL, '11887', 'Pop', Album_SEQ.CURRVAL, 272, 'N');
+
+INSERT INTO Album VALUES (Album_SEQ.NEXTVAL, '2020', '04/20/2020');
+INSERT INTO Music 
+VALUES (Music_SEQ.NEXTVAL, 'Not That Easy', 'Rock', Album_SEQ.CURRVAL, 242, 'Y');
+INSERT INTO Music 
+VALUES (Music_SEQ.NEXTVAL, 'Second-Hand Soul', 'Rock', Album_SEQ.CURRVAL, 239, 'N');
+
+-- insert data into Issuance_on_Platform
+-- create a sequence for Issue_number
+CREATE SEQUENCE Issue_SEQ
+        START WITH 1
+        INCREMENT BY 1;
+
+INSERT INTO Issuance_on_platform
+VALUES(Issue_SEQ.nextval, 1, 6, 'Lauv',0.003, '05/18/2017', '05/18/2047');  
+
+INSERT INTO Issuance_on_platform
+VALUES(Issue_SEQ.nextval, 2, 6, 'Lauv', 0.003, '11/16/2017', '11/16/2047');
+        
+INSERT INTO Issuance_on_platform
+VALUES(Issue_SEQ.nextval, 3, 4, 'Avril Lavigne',0.006, '02/14/2019', '02/14/2049');
+
+INSERT INTO Issuance_on_platform
+VALUES(Issue_SEQ.nextval, 4, 4, 'Avril Lavigne', 0.006, '02/14/2019', '02/14/2049');
+
+INSERT INTO Issuance_on_platform
+VALUES(Issue_SEQ.nextval, 5, 5, 'Bu Cai', 0.001, '07/01/2019', '07/01/2049');
+
+INSERT INTO Issuance_on_platform
+VALUES(Issue_SEQ.nextval, 6, 11, 'Chunhua Xie', 0.001, '06/06/2019', '06/06/2049');
+
+INSERT INTO Issuance_on_platform
+VALUES(Issue_SEQ.nextval, 7, 11, 'Chunhua Xie', 0.001, '06/06/2019', '06/06/2049');
+
+INSERT INTO Issuance_on_platform
+VALUES(Issue_SEQ.nextval, 8, 11, 'Chunhua Xie', 0.001, '06/12/2019', '06/12/2049');
+
+INSERT INTO Issuance_on_platform
+VALUES(Issue_SEQ.nextval, 9, 12, 'Feng Wang', 0.005, '04/20/2020', '04/20/2050');
+
+INSERT INTO Issuance_on_platform
+VALUES(Issue_SEQ.nextval, 10, 12, 'Feng Wang', 0.005, '04/20/2020', '04/20/2050');
+
+ -- insert data into Reflection       
+INSERT INTO Reflection
+VALUES(3,5,'Like');
+
+INSERT INTO Reflection
+VALUES(6,4,'Dislike');
+
+INSERT INTO Reflection
+VALUES(1,4,'Like');
+
+INSERT INTO Reflection
+VALUES(2,1,'Dislike');
+
+INSERT INTO Reflection
+VALUES(6,2,'Like');
+
+INSERT INTO Reflection
+VALUES(1,3,'Like');
+
+INSERT INTO Reflection
+VALUES(7,8,'Like');
+
+INSERT INTO Reflection
+VALUES(9,5,'Dislike');
+
+INSERT INTO Reflection
+VALUES(8,4,'Like');
+
+INSERT INTO Reflection
+VALUES(7,1,'Like');
+
+INSERT INTO Reflection
+VALUES(12,3,'Dislike');
+
+INSERT INTO Reflection
+VALUES(10,5,'Like');
+
+INSERT INTO Reflection
+VALUES(8,6,'Dislike');
+
+INSERT INTO Reflection
+VALUES(3,9,'Like');
+
+INSERT INTO Reflection
+VALUES(7,5,'Like');
+
+-- insert data into Playlist
+-- create a sequence for Playlist
+CREATE SEQUENCE Playlist_SEQ
+        START WITH 1
+        INCREMENT BY 1;
+
+INSERT INTO Playlist
+VALUES(PLAYLIST_SEQ.nextval, 1, 'HAPPY', '10/04/2019');
+
+INSERT INTO Playlist
+VALUES(PLAYLIST_SEQ.nextval, 3, 'SAD', '12/21/2019');
+
+INSERT INTO Playlist
+VALUES(PLAYLIST_SEQ.nextval, 2, 'CALM', '02/14/2020');
+
+INSERT INTO Playlist
+VALUES(PLAYLIST_SEQ.nextval, 6, 'INSPIRING', '04/30/2020');
+
+INSERT INTO Playlist
+VALUES(PLAYLIST_SEQ.nextval, 7, 'BEAUTIFUL', '06/10/2018');
+
+INSERT INTO Playlist
+VALUES(PLAYLIST_SEQ.nextval, 10, 'SORROW', '07/15/2019');
+
+INSERT INTO Playlist
+VALUES(PLAYLIST_SEQ.nextval, 7, 'COOL', '01/20/2020');
+
+INSERT INTO Playlist
+VALUES(PLAYLIST_SEQ.nextval, 8, 'SADNESS', '10/19/2019');
+
+INSERT INTO Playlist
+VALUES(PLAYLIST_SEQ.nextval, 11, 'ENERGETIC', '09/30/2019');
+
+INSERT INTO Playlist
+VALUES(PLAYLIST_SEQ.nextval, 3, 'ROCK', '06/02/2019');
+
+-- insert data into Favorite
+INSERT INTO Favorite VALUES (1,1, '10/04/2019');
+INSERT INTO Favorite VALUES (2,5, '12/21/2019'); 
+INSERT INTO Favorite VALUES (2,4, '12/31/2019');
+INSERT INTO Favorite VALUES (3,2, '02/14/2020');
+INSERT INTO Favorite VALUES (4,3, '04/30/2020');
+INSERT INTO Favorite VALUES (5,8, '05/06/2019');
+INSERT INTO Favorite VALUES (6,5, '08/25/2019');
+INSERT INTO Favorite VALUES (7,10, '04/20/2020');
+INSERT INTO Favorite VALUES (8,5, '12/24/2019');
+INSERT INTO Favorite VALUES (9,9, '04/30/2020');
+INSERT INTO Favorite VALUES (10,9, '04/30/2020');
+
+--insert data into Recomendation
+INSERT INTO Recommendation VALUES ('08/31/2019', 3, 1);
+INSERT INTO Recommendation VALUES ('10/20/2019', 1, 4);
+INSERT INTO Recommendation VALUES ('12/19/2019', 4, 5);
+INSERT INTO Recommendation VALUES ('01/28/2020', 2, 3);
+INSERT INTO Recommendation VALUES ('03/07/2020', 6, 1);
+INSERT INTO Recommendation VALUES ('04/09/2020', 5, 4);
+INSERT INTO Recommendation VALUES ('07/15/2019', 7, 1);
+INSERT INTO Recommendation VALUES ('08/31/2019', 11, 4);
+INSERT INTO Recommendation VALUES ('10/04/2019', 1, 2);
+INSERT INTO Recommendation VALUES ('10/04/2020', 1, 1);
+INSERT INTO Recommendation VALUES ('11/01/2020', 9, 1);
+INSERT INTO Recommendation VALUES ('11/01/2020', 10, 10);
+INSERT INTO Recommendation VALUES ('12/31/2019', 3, 5);
+INSERT INTO Recommendation VALUES ('01/11/2020', 6, 6);
+INSERT INTO Recommendation VALUES ('01/11/2020', 9, 1);
+INSERT INTO Recommendation VALUES ('02/28/2020', 3, 9);
+INSERT INTO Recommendation VALUES ('02/29/2020', 8, 6);
+INSERT INTO Recommendation VALUES ('03/18/2020', 7, 5);
+INSERT INTO Recommendation VALUES ('03/18/2020', 2, 10);
+INSERT INTO Recommendation VALUES ('03/18/2020', 1, 5);
+
+-- insert data into membership_payment
+-- create a sequence to insert orderID
+CREATE SEQUENCE Membership_SEQ
+        START WITH 1
+        INCREMENT BY 1;
+
+INSERT INTO Membership_payment (Order_number, NAccountID, PaymentDate, Membership_Duration)
+VALUES (Membership_SEQ.nextval, 2 , '10/05/2019', 1 );        
+
+INSERT INTO Membership_payment (Order_number, NAccountID, PaymentDate, Membership_Duration)
+VALUES (Membership_SEQ.nextval, 3 , '10/02/2019', 6);  
+
+INSERT INTO Membership_payment (Order_number, NAccountID, PaymentDate, Membership_Duration)
+VALUES (Membership_SEQ.nextval, 2 , '11/06/2019', 1);  
+
+INSERT INTO Membership_payment (Order_number, NAccountID, PaymentDate, Membership_Duration)
+VALUES (Membership_SEQ.nextval, 2 , '12/07/2019', 6);
+
+INSERT INTO Membership_payment (Order_number, NAccountID, PaymentDate, Membership_Duration) 
+VALUES (Membership_SEQ.nextval, 3 , '04/03/2020', 12);
+
+INSERT INTO Membership_payment (Order_number, NAccountID, PaymentDate, Membership_Duration) 
+VALUES (Membership_SEQ.nextval, 1 , '05/02/2020', 12);
+
+INSERT INTO Membership_payment (Order_number, NAccountID, PaymentDate, Membership_Duration) 
+VALUES (Membership_SEQ.nextval, 8 , '04/07/2020', 1);
+
+INSERT INTO Membership_payment (Order_number, NAccountID, PaymentDate, Membership_Duration) 
+VALUES (Membership_SEQ.nextval, 8 , '05/08/2020', 1);
+
+--insert data into Listen
+-- convert the date type
+ALTER SESSION SET NLS_TIMESTAMP_FORMAT='MM/DD/YYYY HH24:MI:SS';
+
+INSERT INTO Listen
+VALUES('10/04/2019 19:00:00', 1, 2, '10/04/2019 19:01:00', 60, 'Recommendation List');
+
+INSERT INTO Listen
+VALUES('10/04/2019 19:01:00', 1, 1, '10/04/2019 19:04:17', 163, 'Recommendation List');
+
+INSERT INTO Listen
+VALUES('10/04/2019 19:04:17', 1, 1, '10/04/2019 19:07:00', 163, 'Recommendation List');
+
+INSERT INTO Listen
+VALUES('12/31/2019 10:30:00', 3, 4, '12/31/2019 10:33:20', 200, 'Search');
+
+INSERT INTO Listen
+VALUES('12/31/2019 10:33:20', 3, 1, '12/31/2019 10:36:37', 197, 'Search');
+
+INSERT INTO Listen
+VALUES('12/31/2019 10:36:37', 3, 1, '12/31/2019 10:38:20', 103, 'Search');
+
+INSERT INTO Listen
+VALUES('12/31/2019 10:36:37', 3, 5, '12/31/2019 10:40:28', 231, 'Recommendation List');
+
+INSERT INTO Listen
+VALUES('02/14/2020 14:00:00', 2, 3, '02/14/2020 14:03:40', 220, 'Other Recommendation');
+
+INSERT INTO Listen
+VALUES('02/14/2020 14:03:40', 2, 2, '02/14/2020 14:07:55', 291, 'Other Recommendation');
+
+INSERT INTO Listen
+VALUES('04/30/2020 15:25:00', 6, 3, '04/30/2020 15:28:40', 220, 'Search');
+
+INSERT INTO Listen
+VALUES('04/30/2020 15:28:40', 6, 3, '04/30/2020 15:31:30', 170, 'Search');
+
+INSERT INTO Listen
+VALUES('05/08/2019 01:10:45', 7, 8, '05/18/2019 01:15:17', 272, 'Playlist');
+
+INSERT INTO Listen
+VALUES('05/08/2019 01:15:17', 7, 8, '05/08/2019 01:19:49', 272, 'Playlist');
+
+INSERT INTO Listen
+VALUES('05/08/2019 01:19:49', 7, 8, '05/08/2019 01:24:21', 272, 'Playlist');
+
+INSERT INTO Listen
+VALUES('06/08/2019 16:20:20', 8, 4, '06/08/2019 16:22:34', 134, 'Other Recommendation');
+
+INSERT INTO Listen
+VALUES('07/02/2019 02:16:08', 9, 5, '07/02/2019 02:16:33', 25, 'Other Recommendation');
+
+INSERT INTO Listen
+VALUES('07/15/2019 03:19:19', 7, 1, '07/15/2019 03:22:36', 163, 'Recommendation List');
+
+INSERT INTO Listen
+VALUES('07/15/2019 03:22:36', 7, 1, '07/15/2019 03:25:53', 163, 'Recommendation List');
+
+INSERT INTO Listen
+VALUES('07/15/2019 03:25:53', 7, 1, '07/15/2019 03:29:10', 163, 'Recommendation List');
+
+INSERT INTO Listen
+VALUES('07/15/2019 03:29:10', 7, 1, '07/15/2019 03:32:27', 163, 'Recommendation List');
+
+INSERT INTO Listen
+VALUES('07/15/2019 03:32:27', 7, 1, '07/15/2019 03:34:44', 137, 'Recommendation List');
+
+INSERT INTO Listen
+VALUES('07/19/2019 09:10:50', 12, 3, '07/19/2019 09:11:31', 41, 'Search');
+INSERT INTO Listen
+VALUES('08/31/2019 20:15:35', 10, 5, '08/31/2019 20:19:26', 231, 'Playlist');
+
+INSERT INTO Listen
+VALUES('8/31/2019 20:19:26', 10, 5, '8/31/2019 20:23:17', 231, 'Playlist');
+
+INSERT INTO Listen
+VALUES('8/31/2019 20:23:17', 10, 5, '8/31/2019 20:27:08', 231, 'Playlist');
+
+INSERT INTO Listen
+VALUES('8/31/2019 20:27:08', 10, 5, '8/31/2019 20:30:59', 231, 'Playlist');
+
+INSERT INTO Listen
+VALUES('8/31/2019 20:30:59', 10, 5, '8/31/2019 20:34:50', 231, 'Playlist');
+
+INSERT INTO Listen
+VALUES('8/31/2019 22:38:06', 11, 4, '8/31/2019 22:42:21', 291, 'Recommendation List');
+
+INSERT INTO Listen
+VALUES('8/31/2019 22:42:21', 11, 4, '8/31/2019 22:46:36', 291, 'Recommendation List');
+
+INSERT INTO Listen
+VALUES('8/31/2019 22:46:36', 11, 4, '8/31/2019 22:50:51', 291, 'Recommendation List');
+
+INSERT INTO Listen
+VALUES('1/19/2020 13:19:20', 12, 7, '1/19/2020 13:22:45', 205, 'Other Recommendation');
+
+INSERT INTO Listen
+VALUES('1/20/2020 14:49:11', 8, 5, '1/20/2020 14:53:02', 205, 'Playlist');
+
+INSERT INTO Listen
+VALUES('2/29/2020 7:21:08', 8, 6, '2/29/2020 7:22:06', 58, 'Recommendation List');
+
+INSERT INTO Listen
+VALUES('3/18/2020 17:54:20', 9, 2, '3/18/2020 17:56:31', 131, 'Search');
+
+INSERT INTO Listen
+VALUES('3/18/2020 0:21:11', 7, 5, '3/18/2020 0:25:02', 231, 'Recommendation List');
+
+INSERT INTO Listen
+VALUES('3/29/2020 22:48:47', 1, 1, '3/29/2020 22:52:04', 163, 'Playlist');
+
+INSERT INTO Listen
+VALUES('4/4/2020 11:00:05', 3, 5, '4/4/2020 11:03:56', 231, 'Search');
+
+INSERT INTO Listen
+VALUES('4/4/2020 15:11:20', 7, 1, '4/4/2020 15:14:37', 163, 'Search');
+
+INSERT INTO Listen
+VALUES('4/4/2020 22:21:51', 5, 6, '4/4/2020 22:25:40', 229, 'Search');
+
+INSERT INTO Listen
+VALUES('4/15/2020 1:01:58', 11, 4, '4/15/2020 1:06:13', 291, 'Other Recommendation');
+
+INSERT INTO Listen
+VALUES('4/20/2020 2:45:02', 7, 10, '4/20/2020 2:49:01', 239, 'Playlist');
+
+INSERT INTO Listen
+VALUES('4/20/2020 17:50:11', 3, 9, '4/20/2020 17:54:13', 242, 'Recommendation List');
+
+INSERT INTO Listen
+VALUES('4/25/2020 3:00:04', 11, 9, '4/25/2020 3:04:06', 242, 'Playlist');
+
+INSERT INTO Listen
+VALUES('4/30/2020 0:00:21', 3, 9, '4/30/2020 0:04:23', 242, 'Playlist');
+
+INSERT INTO Listen
+VALUES('5/2/2020 7:20:59', 8, 9, '5/2/2020 7:22:01', 62, 'Search');
+
+
+
+
+-- view all the tables
+SELECT * FROM User_Account
+ORDER BY ACCOUNTID DESC;
+SELECT * FROM Normal_Account
+ORDER BY NACCOUNTID DESC;
+SELECT * FROM Artist_Account
+ORDER BY AACCOUNTID DESC;
+SELECT * FROM Music
+ORDER BY MUSIC_NUMBER DESC;
+SELECT * FROM Album
+ORDER BY ALBUM_NUMBER DESC;
+SELECT * FROM Playlist
+ORDER BY CREATEDDATE DESC;
+SELECT * FROM Favorite
+ORDER BY FAVORITEDATE DESC;
+SELECT * FROM Issuance_on_Platform
+ORDER BY ISSUEDATE DESC;
+SELECT * FROM Membership_Payment
+ORDER BY ORDER_NUMBER DESC;
+SELECT * FROM Reflection
+ORDER BY ACCOUNTID DESC;
+SELECT * FROM Recommendation
+ORDER BY ACCOUNTID DESC;
+SELECT * FROM Listen
+ORDER BY STARTTIME DESC;

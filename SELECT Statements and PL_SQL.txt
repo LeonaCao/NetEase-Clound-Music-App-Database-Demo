@@ -1,0 +1,308 @@
+Project_Part 2
+Authors: Simeng Deng, Zhuo Chen, Lei Cao
+
+-- 15 SELECT queries
+
+-- Users' features
+--1. Our membership normal users' basic information
+SELECT *
+FROM User_Account
+JOIN Normal_Account ON User_Account.ACCOUNTID = Normal_Account.NACCOUNTID
+WHERE Normal_Account.ISMEMBER = 'Y';
+
+--2. Our independent artist basic information
+SELECT *
+FROM User_Account
+JOIN Artist_Account on User_Account.ACCOUNTID = Artist_Account.AACCOUNTID
+WHERE Artist_Account.ISINDEPENDENT = 'Y';
+
+--3. Sex Composition
+SELECT GENDER, COUNT(GENDER) as GENDERTOTAL
+FROM User_Account
+GROUP BY GENDER;
+
+-- Users' behaviours
+
+--4. Each membershp users' membership duration
+SELECT NACCOUNTID, SUM(MEMBERSHIP_DURATION) as TotalMembershipDuration
+FROM MEMBERSHIP_PAYMENT
+GROUP BY MEMBERSHIP_PAYMENT.NACCOUNTID;
+
+--5. Listening history of our members
+SELECT q1.ACCOUNTID, MUSIC_NUMBER, STARTTIME, STOPTIME, STOPPOINT, LSOURCE
+FROM LISTEN q1
+INNER JOIN (SELECT ACCOUNTID
+FROM User_Account 
+JOIN Normal_Account ON User_Account.ACCOUNTID = Normal_Account.NACCOUNTID
+WHERE Normal_Account.ISMEMBER = 'Y') q2 on q1.ACCOUNTID = q2.ACCOUNTID;
+
+--6. where the user accessed the songs   
+SELECT q1.MUSIC_NUMBER,q1.MUSICNAME, LSOURCE
+FROM MUSIC q1
+INNER JOIN LISTEN q2 ON q1.MUSIC_NUMBER = q2.MUSIC_NUMBER
+ORDER BY q1.MUSIC_NUMBER;
+
+--7. The performance of recommendation list
+SELECT q4.PLAYLIST_NUMBER, q4.MUSIC_NUMBER, q4.FAVORITEDATE, q4.ACCOUNTID, q3.LSOURCE
+FROM LISTEN q3
+INNER JOIN (SELECT q1.PLAYLIST_NUMBER, q1.MUSIC_NUMBER, q1.FAVORITEDATE, q2.ACCOUNTID
+FROM FAVORITE q1
+INNER JOIN PLAYLIST q2 ON q1.PLAYLIST_NUMBER = q2.PLAYLIST_NUMBER) q4 ON q3.ACCOUNTID = q4.ACCOUNTID AND q3.MUSIC_NUMBER = q4.MUSIC_NUMBER
+WHERE q3.LSOURCE = 'Recommendation List';
+
+-- Music
+--8. Information of Premium songs
+SELECT * 
+FROM MUSIC
+WHERE ISPREMIUM = 'Y';
+
+--9. Songs genres composition
+SELECT GENRE, COUNT(GENRE) as GENRETOTAL
+FROM MUSIC
+GROUP BY GENRE;
+
+--10. Information of our songs including duration of copyright
+SELECT q3.*, q2.albumname
+FROM ALBUM q2
+INNER JOIN (SELECT q1.MUSIC_NUMBER, MUSICNAME,ISSUEDATE, ENDDATE,ENDDATE-ISSUEDATE as DurationOfCopyright, MUSIC.ALBUM_NUMBER
+FROM Issuance_on_Platform q1
+JOIN MUSIC ON q1.MUSIC_NUMBER = MUSIC.MUSIC_NUMBER
+ORDER BY DurationOfCopyright DESC) q3 on q2.album_number = q3.ALBUM_NUMBER;
+
+--11. Members' favorite songs
+SELECT q6.MUSIC_NUMBER, q5.MUSICNAME, q5.ISPREMIUM, q6.PLAYLIST_NUMBER, q6.ACCOUNTID
+FROM MUSIC q5
+INNER JOIN (SELECT q3.MUSIC_NUMBER, q4.PLAYLIST_NUMBER, q4.ACCOUNTID
+FROM FAVORITE q3
+INNER JOIN (SELECT PLAYLIST_NUMBER, q2.ACCOUNTID
+FROM PLAYLIST q1
+INNER JOIN (SELECT ACCOUNTID
+FROM User_Account 
+JOIN Normal_Account ON User_Account.ACCOUNTID = Normal_Account.NACCOUNTID
+WHERE Normal_Account.ISMEMBER = 'Y') q2 on q1.ACCOUNTID = q2.ACCOUNTID) q4
+ON q3.PLAYLIST_NUMBER = q4.PLAYLIST_NUMBER) q6
+ON q5.MUSIC_NUMBER = q6.MUSIC_NUMBER;
+
+--12. Listening duration
+SELECT ACCOUNTID, q1.MUSIC_NUMBER, q2.GENRE,
+       SUBSTR((StopTime-StartTime), INSTR((StopTime-StartTime),' ')+7,2) "Second",
+       SUBSTR((StopTime-StartTime), INSTR((StopTime-StartTime),' ')+4,2) "Minute",
+       SUBSTR((StopTime-StartTime), INSTR((StopTime-StartTime),' ')+1,2) "Hour"
+FROM Listen q1
+INNER JOIN (SELECT GENRE, MUSIC_NUMBER FROM MUSIC) q2
+on q1.MUSIC_NUMBER = q2.MUSIC_NUMBER;    
+
+--13. Count the number of times a single song is liked by users
+SELECT q3.MUSIC_NUMBER, q4.MUSICNAME, q3.NUMBEROFLIKE
+FROM MUSIC q4
+INNER JOIN
+(SELECT MUSIC_NUMBER, COUNT(ATTITUDE)as NumberOfLike
+FROM (SELECT q1.MUSIC_NUMBER, q2.ATTITUDE
+FROM MUSIC q1
+INNER JOIN (SELECT MUSIC_NUMBER, ATTITUDE FROM Reflection) q2
+ON q1.MUSIC_NUMBER = q2.MUSIC_NUMBER
+WHERE ATTITUDE = 'Like')
+GROUP BY MUSIC_NUMBER) q3 ON q4.MUSIC_NUMBER = q3.MUSIC_NUMBER;
+
+--14. Sum listening percentage of each song
+SELECT q5.MUSIC_NUMBER, q5.MUSICNAME, q5.GENRE, q5.TOTALPERCENTAGE, q6.TOTALTIMES
+FROM (SELECT q3.MUSIC_NUMBER, q4.MUSICNAME, q4.GENRE, ROUND(q3.TOTALSTOPPOINT/TOTALSONGLENGTH,3) as TOTALPERCENTAGE
+FROM (SELECT q1.MUSIC_NUMBER, SUM(q1.SONGLENGTH) as TOTALSONGLENGTH, SUM(q2.STOPPOINT) as TOTALSTOPPOINT
+FROM MUSIC q1
+INNER JOIN LISTEN q2 ON q1.MUSIC_NUMBER = q2.MUSIC_NUMBER
+GROUP BY q1.MUSIC_NUMBER) q3
+INNER JOIN MUSIC q4 ON q3.MUSIC_NUMBER = q4.MUSIC_NUMBER) q5
+INNER JOIN (SELECT q1.MUSIC_NUMBER, COUNT(q2.MUSIC_NUMBER) as TOTALTIMES
+FROM MUSIC q1
+INNER JOIN LISTEN q2 ON q1.MUSIC_NUMBER = q2.MUSIC_NUMBER
+GROUP BY q1.MUSIC_NUMBER) q6 on q5.MUSIC_NUMBER = q6.MUSIC_NUMBER
+ORDER BY TOTALPERCENTAGE DESC, TOTALTIMES DESC;
+
+--15. Monthly royalties paid to artist 
+SELECT q2.*, ROYALTY, TOTALPLAYED*q3.ROYALTY as Rewards
+FROM (SELECT q1.* , COUNT(MUSIC_NUMBER) as TotalPlayed
+FROM (SELECT MUSIC_NUMBER
+FROM LISTEN
+WHERE STARTTIME >= '01/01/2019' AND STARTTIME <= '12/31/2019' AND STOPPOINT >= 30) q1
+GROUP BY q1.MUSIC_NUMBER) q2
+INNER JOIN ISSUANCE_ON_PLATFORM q3 ON q2.MUSIC_NUMBER = q3.MUSIC_NUMBER;
+
+
+--5 PL/SQLs
+SET SERVEROUTPUT ON; 
+
+--You use our database to know many information about the music, user and listening record. You can use the percentage derived from stoppoint and songlength
+--to know if the user likes this song through quantitative methods. You can also use users' attitude to the songs to know their preference by qualitative ways.
+--You can also get basic information such as gender, age about our users. Moreover, you can judge if our users are fond of what in his or her recommendation list.
+--Last but not least, you are able to know the predilection of users about their membership using the membership duration in our database.
+
+
+--1. use percentage to see if the user likes the song
+CREATE OR REPLACE PROCEDURE USERPREFQUANT(StopPoint IN NUMBER,SongLength IN NUMBER)
+IS
+BEGIN
+ IF  ROUND(StopPoint/SongLength, 3) >= 0.50 THEN
+    dbms_output.put_line( 'The user likes the song.');
+ ELSE
+    dbms_output.put_line( 'The user does not like the song.');
+ END IF;
+END;
+
+--The result will be 'The user does not like the song'
+EXEC USERPREFQUANT(10,30); 
+--The result will be 'The user likes the song'
+EXEC USERPREFQUANT(200,320); 
+
+
+
+--2. judge membership type using MEMBERSHIP function
+CREATE OR REPLACE FUNCTION MEMBERSHIP(Order_Membership_Duration IN NUMBER)
+RETURN VARCHAR
+IS
+BEGIN
+    CASE Order_Membership_Duration
+    WHEN 1 THEN
+    RETURN('Monthly');
+    WHEN 6 THEN
+    RETURN('Half-Year');
+    WHEN 12 THEN
+    RETURN('Whole-Year');
+    END CASE;
+END;
+
+--Monthly
+DECLARE MEMBERSHIPRESULT VARCHAR(250);
+BEGIN
+    MEMBERSHIPRESULT := MEMBERSHIP(1);
+    dbms_output.put_line( MEMBERSHIPRESULT);
+END;
+
+--Whole-Year
+DECLARE MEMBERSHIPRESULT VARCHAR(250);
+BEGIN
+    MEMBERSHIPRESULT := MEMBERSHIP(12);
+    dbms_output.put_line( MEMBERSHIPRESULT);
+END;
+
+--Half-Year
+DECLARE MEMBERSHIPRESULT VARCHAR(250);
+BEGIN
+    MEMBERSHIPRESULT := MEMBERSHIP(6);
+    dbms_output.put_line( MEMBERSHIPRESULT);
+END;
+
+
+--3. If the user listen to the song because of our recommendation list
+CREATE OR REPLACE FUNCTION RECO(reco IN VARCHAR)
+RETURN VARCHAR
+IS
+BEGIN
+    IF reco = 'Recommendation List' THEN RETURN('The user listend to this song because of recommendation list.');
+    ELSE RETURN('The user listened to this song through other sources.');
+    END IF;
+END;
+
+--The result will be 'The user listend to this song because of recommendation list'
+DECLARE 
+    ANSWER VARCHAR(250);
+BEGIN
+    ANSWER := RECO('Recommendation List');
+    dbms_output.put_line(ANSWER);
+END;
+--The result will be 'The user listened to this song through other sources'
+DECLARE 
+    ANSWER VARCHAR(250);
+BEGIN
+    ANSWER := RECO('Search');
+    dbms_output.put_line(ANSWER);
+END;
+
+
+--4. Our users' gender and age
+CREATE OR REPLACE FUNCTION GENDERAGE(Gender IN CHAR, Age IN NUMBER)
+RETURN VARCHAR
+IS
+BEGIN
+    IF (Gender = 'M') AND (Age < 18) THEN RETURN('The user is a boy.');
+    ELSIF (Gender = 'F') AND (Age < 18) THEN RETURN('The user is a girl.');
+    ELSIF (Gender = 'M') AND (Age >= 18) THEN RETURN('The user is a gentleman.');
+    ELSE RETURN('The user is a lady.');
+    END IF;
+END;
+
+
+--The result will be 'The user is a boy'
+DECLARE 
+    ANSWER VARCHAR(250);
+BEGIN
+    ANSWER := GENDERAGE('M',16);
+    dbms_output.put_line(ANSWER);
+END;
+
+--The result will be 'The user is a lady'
+DECLARE 
+    ANSWER VARCHAR(250);
+BEGIN
+    ANSWER := GENDERAGE('F',40);
+    dbms_output.put_line(ANSWER);
+END;
+
+--The result will be 'The user is a girl'
+DECLARE 
+    ANSWER VARCHAR(250);
+BEGIN
+    ANSWER := GENDERAGE('F',6);
+    dbms_output.put_line(ANSWER);
+END;
+
+--The result will be 'The user is a gentleman'
+DECLARE 
+    ANSWER VARCHAR(250);
+BEGIN
+    ANSWER := GENDERAGE('M',40);
+    dbms_output.put_line(ANSWER);
+END;
+
+
+--5. The users' attitude to songs
+CREATE OR REPLACE PROCEDURE ATTITUDE(Attitude IN VARCHAR)
+IS
+BEGIN
+    If Attitude = 'Like' THEN dbms_output.put_line( 'The user likes the song.');
+    ELSE dbms_output.put_line( 'The user does not like the song.');
+    END IF;
+END;
+
+--The result should be 'The user likes the song'
+EXEC ATTITUDE('Like');
+-- The result should be 'The user does not like the song'
+EXEC ATTITUDE('Dislike');
+
+--Additional
+--Combine our RECO funtion and selection from table to see if the user listend to the song because of our recommendation list or not
+BEGIN
+   FOR c IN
+   --Select our table
+   (SELECT q3.USERNAME, q3.LSOURCE, q4.MUSICNAME FROM (SELECT q1.USERNAME, q2.LSOURCE, q2.MUSIC_NUMBER FROM User_Account q1 
+   INNER JOIN (SELECT ACCOUNTID, LSOURCE, MUSIC_NUMBER FROM LISTEN) q2 ON q1.ACCOUNTID = q2.ACCOUNTID) q3
+   INNER JOIN MUSIC q4 ON q3.MUSIC_NUMBER = q4.MUSIC_NUMBER)
+   --For loop
+   LOOP
+        --Using if statement to generate different answers for using recommendation list or not
+        IF c.LSOURCE = 'Recommendation List' THEN dbms_output.put_line(c.USERNAME || ' listened to <' || c.MUSICNAME || '> and '||LOWER(RECO(c.LSOURCE)));
+        ELSE dbms_output.put_line(c.USERNAME || ' listened to <' || c.MUSICNAME || '> but '||LOWER(RECO(c.LSOURCE)));
+        END IF;
+   END LOOP;
+END;
+--Combine our MEMBERSHIP function and selection from table to generate a running account about membership purchases
+BEGIN
+    FOR c IN 
+    --Select our table
+    (SELECT q2.USERNAME, q1.MEMBERSHIP_DURATION, q1.PAYMENTDATE FROM (SELECT NACCOUNTID, MEMBERSHIP_DURATION, PAYMENTDATE FROM MEMBERSHIP_PAYMENT) q1
+    INNER JOIN User_Account q2 ON q1.NACCOUNTID = q2.ACCOUNTID ORDER BY q1.PAYMENTDATE DESC) 
+    --For loop
+    LOOP
+        --Generate the running account about membership purchases
+        dbms_output.put_line(c.USERNAME||' bought a '||MEMBERSHIP(c.MEMBERSHIP_DURATION)||' membership on '||c.PAYMENTDATE||'.');
+    END LOOP;
+END;
